@@ -17,10 +17,10 @@
     public:
       int proxy, client, valread;
       struct sockaddr_in proxyaddr, serveraddr;
-      int opt = 1;
-      int addrlen = sizeof(proxyaddr);
+      int opt;
+      int addrlen;
       char buffer[1024];
-      RequestHandler(unsigned long int, unsigned short int);
+      RequestHandler(const char*, unsigned short int);
       std::vector<std::string> parseRequest(char[]);
       std::vector<std::string> createRequest(std::vector<std::string>);
     };

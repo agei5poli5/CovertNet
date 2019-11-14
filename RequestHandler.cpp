@@ -3,6 +3,7 @@
 #include <sys/socket.h> 
 #include <stdlib.h> 
 #include <netinet/in.h> 
+#include <arpa/inet.h>
 #include <string.h>
 #include <string> 
 #include <vector>
@@ -13,10 +14,14 @@
 #include "RequestHandler.h"
 #define PORT 8080
 
-  RequestHandler::RequestHandler(unsigned long int serverip, unsigned short int serverport){
+  RequestHandler::RequestHandler(const char* serverip, unsigned short int serverport){
+    opt = 1;
+    addrlen = sizeof(proxyaddr);
+    
     serveraddr.sin_family = AF_INET;
-    serveraddr.sin_addr.s_addr = serverip;
-    serveraddr.sin_port = serverport;
+    serveraddr.sin_port = htons(serverport);
+    inet_aton(serverip, &serveraddr.sin_addr);
+
     
     proxyaddr.sin_family = AF_INET;
     proxyaddr.sin_addr.s_addr = INADDR_ANY;
@@ -84,7 +89,7 @@
 
 	int main(){
           //std::cout << "GET\n";
-	  unsigned long a = 1203049;
+	  const char* a ="10.10.53.67"; 
           unsigned short b = 8080;
 	  RequestHandler r(a, b);
           return 0;
