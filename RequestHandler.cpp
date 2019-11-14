@@ -64,10 +64,13 @@
 
     std::vector<std::string> RequestHandler::createRequest(std::vector<std::string> parsed) 
     {
+       std::string url = "foo.php";
+       std::cout << parsed[0];
        std::vector<std::string> request;
-       std::vector<std::string>::iterator it;
-       request.insert(it, "POST");
-       request.insert(it, "foo");
+       auto it = request.begin();
+       request.insert(it, "POST" + url + "HTTP/1.1");
+       it = request.begin();
+       request.insert(it++, "Host: " + url);
        std::cout << request.front() + "\n";
        return request;
       }
