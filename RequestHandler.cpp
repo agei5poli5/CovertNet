@@ -10,15 +10,10 @@
 #include <iostream>
 #include <iterator>
 #include <sstream>
-#define PORT 8080;
-class requestHandler {
-  int proxy, client, valread;
-  struct sockaddr_in proxyaddr, serveraddr;
-  int opt = 1;
-  int addrlen = sizeof(proxyaddr);
-  char buffer[1024] = {0};
+#include "RequestHandler.h"
+#define PORT 8080
 
-  requestHandler(unsigned long serverip, unsigned short serverport){
+  RequestHandler::RequestHandler(unsigned long int serverip, unsigned short int serverport){
     serveraddr.sin_family = AF_INET;
     serveraddr.sin_addr.s_addr = serverip;
     serveraddr.sin_port = serverport;
@@ -51,8 +46,46 @@ class requestHandler {
         perror("accept");
         exit(EXIT_FAILURE);
       }
+      valread = read(client, buffer, 1024);
+      std::vector<std::string> parsed = parseRequest(buffer);
+      char* parsey = "hiya";
+      send(client, parsey, strlen(parsey), 0);
+      std::vector<std::string> newrequest = createRequest(parsed);
+      }
 }
-}
+   std::vector<std::string> RequestHandler::parseRequest(char request[]){
+     std::istringstream iss(request);
+     std::istream_iterator<std::string> requestiter = std::istream_iterator<std::string>(iss);
+     std::istream_iterator<std::string> end = std::istream_iterator<std::string>();
+     std::vector<std::string> results(requestiter, end);
+     //std::cout << results[0] + "\n";
+     return results;
+      }
+
+    std::vector<std::string> RequestHandler::createRequest(std::vector<std::string> parsed) 
+    {
+       std::vector<std::string> request;
+       std::vector<std::string>::iterator it;
+       request.insert(it, "POST");
+       request.insert(it, "foo");
+       std::cout << request.front() + "\n";
+       return request;
+      }
+      
+
+    
+       
+      
+      
+
+
+	int main(){
+          //std::cout << "GET\n";
+	  unsigned long a = 1203049;
+          unsigned short b = 8080;
+	  RequestHandler r(a, b);
+          return 0;
+        }
      
     
 
@@ -76,4 +109,4 @@ class requestHandler {
 
 
 
-}
+

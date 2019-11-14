@@ -69,7 +69,7 @@ int main(int argc, char const *argv[])
     std::vector<std::string> results(request, end);
     const char* requestType = "GET";
     std::cout << results[0] << std::endl;
-    send(new_socket , requestType, strlen(requestType) , 0 ); 
+    send(new_socket , requestType, strlen(requestType) , 0 );
     printf("Hello message sent\n"); 
     //return 0;
     }
