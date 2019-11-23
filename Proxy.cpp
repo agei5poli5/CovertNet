@@ -20,6 +20,11 @@ static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   };
 }
 
+void parseRequest(struct http_message *hm){
+	const char* meth = hm->method.p;
+        printf(meth);
+
+}
 void sendRequest(struct http_message *hm){
     mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", NULL);
 }
