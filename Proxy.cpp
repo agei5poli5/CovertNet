@@ -1,5 +1,12 @@
+#include <string.h>
+#include <string>
+#include <iostream>
+#include <iterator>
+#include <sstream>
+#include <vector>
+//#include "mongoose.c"
 #include "mongoose.h"
-#include "mongoose.c"
+
 
 
 static const char *s_http_port = "8080";
@@ -21,19 +28,25 @@ static void ev_handler2(struct mg_connection *c, int ev, void *p) {
 }
 
 void parseRequest(struct http_message *hm){
-	const char* meth = hm->method.p;
-        printf(meth);
+	const char* req = hm->method.p;
+  std::istringstream iss(req);
+  std::istream_iterator<std::string> request = std::istream_iterator<std::string>(iss);
+  std::istream_iterator<std::string> end = std::istream_iterator<std::string>();
+  std::vector<std::string> results(request, end);
+  for(int i=0; i<results.size(); i++){
+    std::cout << results[i] + "\n";
+  }
 
 }
 void sendRequest(struct http_message *hm){
-    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", NULL);
+    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", "var_1=value_1&var_2=value_2");
 }
 
 static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REQUEST) {
     struct http_message *hm = (struct http_message *) p;
+    parseRequest(hm);
     sendRequest(hm);
-  
     mg_send_head(c, 200, hm->message.len, "Content-Type: text/plain");
   
   }
