@@ -3,7 +3,7 @@
 
 
 static const char *s_http_port = "8080";
-static const char *url = "10.10.53.67:8080";
+static const char *url = "10.10.53.67:8080/helloservlet/sayhello";
 static int exit_flag = 0;
 struct mg_mgr mgr;
 
@@ -28,11 +28,9 @@ static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REQUEST) {
     struct http_message *hm = (struct http_message *) p;
     sendRequest(hm);
-    // We have received an HTTP request. Parsed request is contained in `hm`.
-    // Send HTTP reply to the client which shows full original request.
+  
     mg_send_head(c, 200, hm->message.len, "Content-Type: text/plain");
-    //mg_printf(c, "%.*s", (int)hm->message.len, hm->message.p);
-    //printf("Gotit\n");
+  
   }
   
 }
