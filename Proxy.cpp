@@ -27,25 +27,26 @@ static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   };
 }
 
-void parseRequest(struct http_message *hm){
+char* parseRequest(struct http_message *hm){
 	const char* req = hm->method.p;
   std::istringstream iss(req);
   std::istream_iterator<std::string> request = std::istream_iterator<std::string>(iss);
   std::istream_iterator<std::string> end = std::istream_iterator<std::string>();
   std::vector<std::string> results(request, end);
-  for(int i=0; i<results.size(); i++){
-    std::cout << results[i] + "\n";
-  }
-
+  char hidden[1024];
+  snprintf(hidden, sizeof(hidden), "x1=%s %s %s&x2=%s%s&x3=%s%s&x4=%s%s", results[0].c_str(), results[1].c_str(), results[2].c_str(), results[3].c_str(), results[4].c_str(), results[5].c_str(), results[6].c_str(), results[7].c_str(), results[8].c_str());
+  return hidden;
 }
-void sendRequest(struct http_message *hm){
-    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", "var_1=value_1&var_2=value_2");
+void sendRequest(struct http_message *h){
+    char* body;
+    body = parseRequest(h);
+    printf("%s\n", body);
+    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", "hh");
 }
 
 static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REQUEST) {
     struct http_message *hm = (struct http_message *) p;
-    parseRequest(hm);
     sendRequest(hm);
     mg_send_head(c, 200, hm->message.len, "Content-Type: text/plain");
   
