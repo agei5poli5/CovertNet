@@ -13,6 +13,7 @@ static const char *s_http_port = "8080";
 static const char *url = "10.10.53.67:8080/helloservlet/sayhello";
 static int exit_flag = 0;
 struct mg_mgr mgr;
+char hidden[1024];
 
 static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REPLY) {
@@ -33,7 +34,6 @@ char* parseRequest(struct http_message *hm){
   std::istream_iterator<std::string> request = std::istream_iterator<std::string>(iss);
   std::istream_iterator<std::string> end = std::istream_iterator<std::string>();
   std::vector<std::string> results(request, end);
-  char hidden[1024];
   snprintf(hidden, sizeof(hidden), "x1=%s %s %s&x2=%s%s&x3=%s%s&x4=%s%s", results[0].c_str(), results[1].c_str(), results[2].c_str(), results[3].c_str(), results[4].c_str(), results[5].c_str(), results[6].c_str(), results[7].c_str(), results[8].c_str());
   return hidden;
 }
@@ -41,7 +41,7 @@ void sendRequest(struct http_message *h){
     char* body;
     body = parseRequest(h);
     printf("%s\n", body);
-    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", "hh");
+    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", body);
 }
 
 static void ev_handler1(struct mg_connection *c, int ev, void *p) {
