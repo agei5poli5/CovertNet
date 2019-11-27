@@ -19,8 +19,8 @@ static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REPLY) {
     struct http_message *hm = (struct http_message *)p;
     c->flags |= MG_F_CLOSE_IMMEDIATELY;
+    printf("Hello\n");
     fwrite(hm->message.p, 1, (int)hm->message.len, stdout);
-    //printf("Hello\n");
     putchar('\n');
     exit_flag = 1;
   } else if (ev == MG_EV_CLOSE) {
@@ -34,10 +34,11 @@ char* parseRequest(struct http_message *hm){
   std::istream_iterator<std::string> request = std::istream_iterator<std::string>(iss);
   std::istream_iterator<std::string> end = std::istream_iterator<std::string>();
   std::vector<std::string> results(request, end);
-  snprintf(hidden, sizeof(hidden), "x1=%s %s %s&x2=%s%s&x3=%s%s&x4=%s%s", results[0].c_str(), results[1].c_str(), results[2].c_str(), results[3].c_str(), results[4].c_str(), results[5].c_str(), results[6].c_str(), results[7].c_str(), results[8].c_str());
+  snprintf(hidden, sizeof(hidden), "y1=%s %s %s%%20&y2=%s%s%%20&y3=%s%s&y4=%s%s", results[0].c_str(), results[1].c_str(), results[2].c_str(), results[3].c_str(), results[4].c_str(), results[5].c_str(), results[6].c_str(), results[7].c_str(), results[8].c_str());
   return hidden;
 }
 void sendRequest(struct http_message *h){
+
     char* body;
     body = parseRequest(h);
     printf("%s\n", body);
@@ -46,6 +47,7 @@ void sendRequest(struct http_message *h){
 
 static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REQUEST) {
+
     struct http_message *hm = (struct http_message *) p;
     sendRequest(hm);
     mg_send_head(c, 200, hm->message.len, "Content-Type: text/plain");
