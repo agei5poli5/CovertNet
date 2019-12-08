@@ -6,8 +6,11 @@
 #include <vector>
 //#include "mongoose.c"
 #include "mongoose.h"
-
-
+#include <openssl/evp.h>
+#include <openssl/aes.h>
+#include <stdio.h>
+#include <stdlib.h> 
+#include "encrypt.h"
 
 static const char *s_http_port = "8080";
 static const char *url = "10.10.53.67:8080/helloservlet/sayhello";
@@ -18,9 +21,19 @@ char resp[1024];
 static const char *s_ssl_cert = "covertnet_org.crt";
 static const char *s_ssl_key = "server.key";
 static const char* response_line;
+static const char* response_code;
 static const char* extra_headers;
 static const char* body;
+static int sem = 0;
+static int rc;
 const char *err;
+static struct mg_connection *listening;
+EVP_CIPHER_CTX en, de;
+unsigned int salt[] = {12345, 54321};
+unsigned char *key_data = a;
+int key_data_len = strlen(key_data);
+
+
 
 void parseResponse(struct http_message *hm){
   const char* resp = hm->message.p;
@@ -59,35 +72,54 @@ void parseResponse(struct http_message *hm){
   iter = full.begin();
   iter += c;*/
   //full.insert(iter, r);
+  c = 0;
   std::vector<std::string> parsed = std::vector<std::string>();
   auto it = parsed.begin();
    for(iter = full.begin(); iter != full.end(); iter++){
     std::string field = *iter;
-    c = 0;
+    //std::cout << field << std::endl;
+    c++;
     while((pos = field.find(delimiter3)) != std::string::npos){
-      c++;
       token = field.substr(pos + delimiter3.length(), field.length());
-      std::cout << token << std::endl;
+      //std::cout << token << std::endl;
       parsed.insert(it, token);
       it = parsed.begin();
       it += c;
       field.erase(0, pos + delimiter3.length());
     }   
    }
+   while((pos = r.find(delimiter3)) != std::string::npos){
+       token = r.substr(pos + delimiter3.length(), r.length());
+       parsed.insert(it, token);
+       r.erase(0, pos + delimiter3.length());
+   }
    response_line = parsed[0].c_str();
    std::string h;
-   for(int i = 1; i < parsed.size(); i++){
-    std::cout << parsed[i] << std::endl;
+   for(int i = 1; i < parsed.size()-1; i++){
+    
         h += parsed[i];
         h += "\n";
    }
+   h += "Transfer-Encoding:chunked";
    extra_headers = h.c_str();
+   int k = parsed.size()-1;
+   body = parsed[k].c_str();
+  
 
-   //std::cout << response_line << std::endl;
-   //std::cout << extra_headers << std::endl;
+  
+   std::istringstream iss_resp(response_line);
+   std::istream_iterator<std::string> r_line = std::istream_iterator<std::string>(iss_resp);
+   std::istream_iterator<std::string> end_r = std::istream_iterator<std::string>();
+   std::vector<std::string> results_r(r_line, end_r);
+   response_code = results_r[1].c_str();
 
-
-
+   std::stringstream rs(response_code);
+   rs >> rc;
+   printf("%i", rc);
+   std::cout << listening->recv_mbuf.buf << std::endl;
+   mg_send_response_line(listening, rc, extra_headers);
+   mg_send_http_chunk(listening, "", 0);
+   
   //std::cout << r << std::endl;
 }
 static void ev_handler2(struct mg_connection *c, int ev, void *p) {
@@ -104,7 +136,7 @@ static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   };
 }
 
-char* parseRequest(struct http_message *hm){
+char* packRequest(struct http_message *hm){
 	const char* req = hm->method.p;
   std::istringstream iss(req);
   std::istream_iterator<std::string> request = std::istream_iterator<std::string>(iss);
@@ -118,7 +150,7 @@ char* parseRequest(struct http_message *hm){
 void sendRequest(struct http_message *h){
 
     char* body;
-    body = parseRequest(h);
+    body = packRequest(h);
     std::cout << body << std::endl;
     mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", body);
 }
@@ -128,10 +160,10 @@ static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   
     struct http_message *hm = (struct http_message *) p;
     sendRequest(hm);
-    mg_send_head(c, 200, hm->message.len, "Transfer-Encoding: chunked");
-    const char* str = "Uhh, hey?";
-    mg_send_http_chunk(c, str, strlen(str));
-    mg_send_http_chunk(c, "", 0); // Tell the client we're finished
+
+    //mg_send_http_chunk(c, "", 0); // Tell the client we're finished
+   //mg_send_response_line(c, rc, extra_headers);
+    //mg_send_http_chunk(c, body, strlen(body));
 
 
 
@@ -142,8 +174,13 @@ static void ev_handler1(struct mg_connection *c, int ev, void *p) {
 
 
 int main(void) {
-  
-  struct mg_connection *listen;
+   
+   encryption* e = new encryption();
+    if (e->aes_init(key_data, key_data_len, (unsigned char *)&salt, &en, &de)) {
+    printf("Couldn't initialize AES cipher\n");
+    return -1;
+  }
+
   struct mg_bind_opts bind_opts;
   mg_mgr_init(&mgr, NULL);
   
@@ -156,14 +193,14 @@ int main(void) {
   
 
   //std::cout <<"gotthisfar2"<<std::endl;
-  listen = mg_bind(&mgr, "8080", ev_handler1);
+  listening = mg_bind(&mgr, "8080", ev_handler1);
   //listen = mg_bind_opt(&mgr, s_http_port, ev_handler1, bind_opts);
   //std::cout <<"gotthisfar3"<<std::endl;
-  if (listen == NULL) {
+  if (listening == NULL) {
     printf("Failed to create listener: %s\n", err);
     return 1;
   }
-  mg_set_protocol_http_websocket(listen);
+  mg_set_protocol_http_websocket(listening);
   
 
   for (;;) {
