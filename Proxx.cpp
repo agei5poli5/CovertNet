@@ -4,7 +4,6 @@
 #include <iterator>
 #include <sstream>
 #include <vector>
-//#include "mongoose.c"
 #include "mongoose.h"
 #include <openssl/evp.h>
 #include <openssl/aes.h>
@@ -13,7 +12,7 @@
 #include <stdlib.h> 
 #include "encrypto.h"
 
-static const char *s_http_port = "443";
+static const char *s_http_port = "8080";
 static const char *url = "10.10.53.67:8080/helloservlet/sayhello";
 static int exit_flag = 0;
 struct mg_mgr mgr;
@@ -24,7 +23,7 @@ static const char *s_ssl_key = "server.key";
 static const char* response_line;
 static const char* response_code;
 static const char* extra_headers;
-static const char* body;
+static const char* bodyy;
 static int sem = 0;
 static int rc;
 const char *err;
@@ -33,6 +32,7 @@ encrypto* e = new encrypto();
 unsigned char *key;
 unsigned char *iv;
 struct http_message *c_request;
+static int waiter = 1;
    
 
 
@@ -93,20 +93,21 @@ void parseResponse(struct http_message *hm){
    }
    while((pos = r.find(delimiter3)) != std::string::npos){
        token = r.substr(pos + delimiter3.length(), r.length());
+       //std::cout << token << std::endl;
        parsed.insert(it, token);
        r.erase(0, pos + delimiter3.length());
    }
    response_line = parsed[0].c_str();
    std::string h;
    for(int i = 1; i < parsed.size()-1; i++){
-    
+      
         h += parsed[i];
         h += "\n";
    }
-   h += "Transfer-Encoding:chunked";
+   // h += "Transfer-Encoding:chunked";
    extra_headers = h.c_str();
    int k = parsed.size()-1;
-   body = parsed[k].c_str();
+   bodyy = parsed[parsed.size()-1].c_str();
   
 
   
@@ -115,23 +116,27 @@ void parseResponse(struct http_message *hm){
    std::istream_iterator<std::string> end_r = std::istream_iterator<std::string>();
    std::vector<std::string> results_r(r_line, end_r);
    response_code = results_r[1].c_str();
+    
 
-   std::stringstream rs(response_code);
-   rs >> rc;
-   
-   //std::cout << response_code << std::endl;
-   //std::cout << extra_headers << std::endl;
-   //std::cout << bodyy << std::endl;
-   
-   mg_send_response_line(cv_listen, rc, extra_headers);
-   mg_send_http_chunk(cv_listen, "", 0);
-
+    //std::cout << response_code << std::endl;
+    //std::cout << extra_headers << std::endl;
+    //std::cout << bodyy << std::endl;
    
   
 }
-
+static void ev_handler3(struct mg_connection *c, int ev, void *p){
+    if(ev == MG_EV_HTTP_REPLY){
+      
+         struct http_message *hm = (struct http_message *)p;
+         /*if(hm->method.p == "HTTP/1.1 200 OK"){
+             key = hm->body.p;
+             sendRequest(c_request);
+         }*/
+    }
+}
 static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REPLY) {
+    waiter = 0;
     struct http_message *hm = (struct http_message *)p;
     c->flags |= MG_F_CLOSE_IMMEDIATELY;
   
@@ -144,54 +149,58 @@ static void ev_handler2(struct mg_connection *c, int ev, void *p) {
   };
 }
 
-char* packRequest(struct http_message *hm){
+    char* packRequest(struct http_message *hm){
 	const char* req = hm->method.p;
   std::istringstream iss(req);
   std::istream_iterator<std::string> request = std::istream_iterator<std::string>(iss);
   std::istream_iterator<std::string> end = std::istream_iterator<std::string>();
   std::vector<std::string> results(request, end);
   std::vector<std::string> encrypted = std::vector<std::string>();
-  unsigned char* ciphertext;
-  auto it = encrypted.begin();
+  //unsigned char* ciphertext;
+  //auto it = encrypted.begin();
+  /*
   for(int i = 0; i < results.size(); i){
     unsigned char* pt = (unsigned char*)results[i].c_str();
     int ciphertext_len = e->encrypt (pt, strlen ((char *)pt), key, iv, ciphertext);
     std::string ct((char*)ciphertext);
     encrypted.insert(it, ct);
     it++;
+  }*/
+  std::string cv_body("y1=");
+  std::string space(" ");
+  for(int j = 0; j < 3; j++){
+     cv_body += results[j];
+     cv_body += space;
+     
+     //std::string hide(hidden);
+     //cv_body += hide;
   }
-  std::string cv_body("");
-  for(int j = 0; j < encrypted.size(); j++){
-     snprintf(hidden, sizeof(hidden), "y%d=%s", j+1, encrypted[j].c_str());
+
+  for(int j = 3; j < results.size()-1; j+=2){
+     snprintf(hidden, sizeof(hidden), "y%d=%s%s", j-1, results[j].c_str(), results[j+1].c_str());
      std::string hide(hidden);
      cv_body += hide;
   }
-  return (char*)cv_body.c_str();
+  char* cv_return = "y1=GET / HTTP/1.1 y2=Host:localhost:8080y4=Content-Length:0y6=Content-Type:application/x-www-form-urlencoded";
+  //printf("%s\n", returny);
+  return cv_return;
 }
 
 void sendRequest(struct http_message *h){
 
     char* body;
     body = packRequest(h);
-    //std::cout << body << std::endl;
-    //mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", body);
-}
-static void ev_handler3(struct mg_connection *c, int ev, void *p){
-    if(ev == MG_EV_HTTP_REPLY){
-         struct http_message *hm = (struct http_message *)p;
-         if(hm->method.p == "HTTP/1.1 200 OK"){
-             key = (unsigned char*)hm->body.p;
-             sendRequest(c_request);
-         }
-    }
+    //printf("%s\n", body);
+    mg_connect_http(&mgr, ev_handler2, url, "Content-Type: application/x-www-form-urlencoded\r\n", body);
 }
 
 static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   if (ev == MG_EV_HTTP_REQUEST) {
   
     struct http_message *hm = (struct http_message *) p;
-    c_request = hm;
-    mg_connect_http(&mgr, ev_handler3, url, "Content-Type: application/x-www-form-urlencoded\r\n", NULL);
+    sendRequest(hm);
+    
+    
 
 
   
@@ -199,33 +208,31 @@ static void ev_handler1(struct mg_connection *c, int ev, void *p) {
   
 }
 
+
 int main(void) {
    
-   
-   if (!RAND_bytes(key, sizeof key)) {
-     return -1;
-    }
-    if (!RAND_bytes(iv, sizeof iv)) {
-      return -1;
-  }
+
   struct mg_bind_opts bind_opts;
   mg_mgr_init(&mgr, NULL);
   
   memset(&bind_opts, 0, sizeof(bind_opts));
-  std::cout << "Got here" << std::endl;
+ 
 
   bind_opts.ssl_cert = s_ssl_cert;
   bind_opts.ssl_key = s_ssl_key;
   bind_opts.error_string = &err;
-  std::cout << "Got here" << std::endl;
-  cv_listen = mg_bind_opt(&mgr, s_http_port, ev_handler1, bind_opts);
+
   cv_listen = mg_bind(&mgr, s_http_port, ev_handler1);
+  
+
+  
+  //cv_listen = mg_bind_opt(&mgr, s_http_port, ev_handler1, bind_opts);
   
   if (cv_listen == NULL) {
     printf("Failed to create listener: %s\n", err);
     return 1;
   }
-  mg_set_protocol_http_websocket(cv_listen  );
+  mg_set_protocol_http_websocket(cv_listen);
   
 
   for (;;) {
